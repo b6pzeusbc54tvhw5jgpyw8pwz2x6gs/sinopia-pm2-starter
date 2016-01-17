@@ -1,19 +1,42 @@
 {
   "name": "sinopia-pm2-starter",
-  "version": "1.0.0",
-  "description": "Sinopia starter on pm2 env",
-  "main": "starter.js",
+  "preferGlobal": "true",
+  "version": "1.1.0",
+  "description": "Start sinopia using pm2",
+  "main": "bin/sinopia-pm2-starter.js",
   "scripts": {
     "start": "node starter",
     "restart": "node starter --restart"
   },
-  "author": "",
+  "directories": {
+    "bin": "bin"
+  },
+  "bin": {
+    "sinopia-pm2-starter": "bin/sinopia-pm2-starter.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/b6pzeusbc54tvhw5jgpyw8pwz2x6gs/sinopia-pm2-starter"
+  },
+  "author": "Alfred UC",
   "license": "MIT",
   "dependencies": {
     "ansi-escape-string": "^1.0.0",
+    "commander": "^2.9.0",
     "pm2": "^1.0.0",
     "sync-exec": "^0.6.2",
     "underscore": "^1.8.3",
+    "when": "^3.7.7",
     "yargs": "^3.32.0"
-  }
+  },
+  "keywords": [
+    "sinopia",
+    "pm2",
+    "private npm",
+    "npm",
+    "mw own npm",
+    "custom npm",
+    "private registry",
+    "private npm registry"
+  ]
 }
