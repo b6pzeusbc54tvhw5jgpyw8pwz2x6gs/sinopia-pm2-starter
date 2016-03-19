@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 
-const when = require( 'when' );
 const _ = require('underscore');
 const fs = require('fs');
 const path = require('path');
-const pm2 = require('pm2');
 const ERROR_EXIT = 1;
 const syncExec = require('sync-exec');
 const pkg = require('../package.json');
@@ -12,66 +10,69 @@ const program = require('commander');
 //const SUCCESS_EXIT = 0;
 //const DEVELOPMENT = true;
 const processName = "sinopia";
-require('ansi-escape-string');
+const colors = require('colors');
+colors.enabled = true;
 
 const ROOT_PATH = path.resolve(process.env.HOME, '.sinopia-pm2-starter');
 const SERVER_INFO_PATH = path.resolve( ROOT_PATH, 'serverInfo.json');
+const PROCESS_JSON = path.resolve( ROOT_PATH, '_process.json' );
 const PROTOCOL_REGEXP = /^https?:\/\//;
 
-//
-// find global sinopia
-//
-const result =	syncExec('which sinopia');
-const scriptPath = result.stdout.replace(/\n$/,'');
-if( ! scriptPath ) {
-	console.log("sinopia must be installed as globally. To install, type 'npm install -g sinopia'".red() );
-	process.exit( ERROR_EXIT );
-}
-
-//
-// find global pm2
-//
-// todo: use global pm2
-/*
-var globalPm2Path;
-(function() {
-	var res = syncExec('which pm2');
-	var maybeSymlinkPath = ( res.stdout || '' ).replace( /\n$/,'' );
-	if( maybeSymlinkPath ) {
-		globalPm2Path = readlinkSync( maybeSymlinkPath );
-	}
-
-	if( globalPm2Path && ! /$\//.test( globalPm2Path ) ) {
-
-		globalPm2Path = path.join( path.dirname(maybeSymlinkPath), globalPm2Path);
-
-	} else if( globalPm2Path ) {
-
-	} else {
-
-	}
-
-}());
-*/
-
-const defaultServerInfo = {
-	proxyAddress: "",
-	host: "http://localhost",
-	port: 4873
-};
 var serverInfo;
 try {
 	serverInfo = require( SERVER_INFO_PATH );
 } catch( err ) {
 	console.log('No config file');
-	console.log("If you want to use your serverInfo, sinopia-pm2-starter --help".yellow() );
+	console.log("If you want to use your serverInfo, sinopia-pm2-starter --help".yellow );
 	serverInfo = {};
 }
 
 _.each( serverInfo, function( val, key ) {
 	if( ! val ) delete serverInfo[ key ];
 });
+
+const defaultServerInfo = {
+	proxyAddress: "",
+	host: "http://localhost",
+	port: 4873
+};
 serverInfo = _.extend( {}, defaultServerInfo, serverInfo );
+
+
+//
+// find node, pm2, sinopia paths
+//
+const NODE = serverInfo.nodePath || process.execPath;
+const PM2 = (function() {
+
+	if( serverInfo.pm2Path ) {
+
+		return serverInfo.pm2Path;
+
+	} else {
+
+		var res = syncExec('which pm2');
+		return ( res.stdout || '' ).replace( /\n$/,'' );
+	}
+}());
+const SINOPIA = ( function() {
+
+	if( serverInfo.sinopiaPath ) {
+		return serverInfo.sinopiaPath;
+	} else {
+		const result = syncExec('which sinopia');
+		return result.stdout.replace(/\n$/,'');
+	}
+}());
+
+console.log( 'nodejs path: ', NODE.green );
+console.log( 'pm2 path: ', PM2.green );
+console.log( 'sinopia path: ', SINOPIA.green );
+if( ! NODE || ! PM2 || ! SINOPIA ) {
+	console.log("pm2 and sinopia paths must be set or installed globally".red );
+	console.log("Install command: npm install -g pm2 sinopia'".red );
+	process.exit( ERROR_EXIT );
+}
 
 // ready DIR
 (function() {
@@ -91,65 +92,51 @@ program
 
 program.on('--help', function() {
   console.log('  Basic Examples:');
-  console.log('');
-  console.log('    Set a your dnsEver.com id and secret code');
-  console.log('    $ dnsever-ddns-updater id wonbin32');
-  console.log('    $ dnsever-ddns-updater auth_code oiwj32olkd');
-  console.log('');
-  console.log('    Show all informatino');
-  console.log('    $ dnsever-ddns-updater show');
-  console.log('');
-  console.log('    More information in https://github.com/b6pzeusbc54tvhw5jgpyw8pwz2x6gs/sinopia-pm2-starter');
-  console.log('');
+  console.log('    sinopia-pm2-starter config:host sinopia.mycompany.com');
+  console.log('    sinopia-pm2-starter config:port 433');
+  console.log('    sinopia-pm2-starter config:proxy http://my.proxy.address:port');
+  console.log('    sinopia-pm2-starter config');
+  console.log('    sinopia-pm2-starter start');
 });
 
 program.command('start')
 .description('Start sinopia server')
 .action(function() {
-	pm2Connect().then( function() {
-		return pm2Start();
-	}).then( function() {
-		pm2.disconnect();
-	});
+	start();
 });
 
 program.command('restart')
 .description('Restart sinopia server')
 .action(function() {
-	pm2Connect().then( function() {
-		return pm2Delete();
-	}).then( function() {
-		return pm2Start();
-	}).then( function() {
-		pm2.disconnect();
-	});
+	exec([ PM2, 'delete', processName ]);
+	start();
 });
 
 program.command('stop')
 .description('Stop sinopia server')
 .action(function() {
-	pm2Connect().then( function() {
-		return pm2Delete();
-	}).then( function() {
-		pm2.disconnect();
-	});
+	exec([ PM2, 'delete', processName ]);
 });
 
-/*
-// todo: !
-program.command('log')
-.description('Monitor logs of the sinopia server');
+program.command('logs')
+.description('Monitor logs of the sinopia server')
 .action(function() {
-
-	spawn( globalPm2Path, ['logs', pm2script.name, '--raw'], { stdio: stdioOption });
+	exec([ PM2, 'logs', processName ]);
 });
-*/
 
 program.command('config')
 .alias('config:list')
 .description('Show all serverInfo')
 .action(function() {
-	console.log( serverInfo );
+	console.log( JSON.stringify( serverInfo, null, 2 ) );
+});
+
+program.command('config:pm2 <pm2_absolute_path>')
+.description('Set pm2 path')
+.action(function( pm2Path ) {
+
+	serverInfo.pm2Path = pm2Path;
+	save( serverInfo );
 });
 
 program.command('config:host <hostAddress>')
@@ -167,7 +154,7 @@ program.command('config:port <port>')
 .description('Set server host')
 .action(function( port ) {
 	if( ! port ) {
-		console.log('Wrong port'.red() );
+		console.log('Wrong port'.red );
 		process.exit( ERROR_EXIT );
 	}
 	serverInfo.port = port;
@@ -186,95 +173,60 @@ program.command('config:proxy <proxy_address>')
 
 program.parse(process.argv);
 
+function getPm2Script() {
+	var pm2script = {
+		name: processName,
+		log_date_format: "YYYY-MM-DD HH:mm Z",
+		script: SINOPIA,
+		args: ["--listen", serverInfo.host+':'+serverInfo.port ],
 
-var pm2script = {
-	name: processName,
-	log_date_format: "YYYY-MM-DD HH:mm Z",
-	script: scriptPath,
-	args: ["--listen", serverInfo.host+':'+serverInfo.port ],
+		//"instances": 1, //or 0 => 'max'
+		min_uptime: "10s", // defaults to 15
+		max_restarts: 3, // defaults to 15
 
-	//"instances": 1, //or 0 => 'max'
-	min_uptime: "10s", // defaults to 15
-	max_restarts: 3, // defaults to 15
+		error_file: path.join( process.env.HOME,'.pm2','logs', processName+'.log' ),
+		out_file: path.join( process.env.HOME,'.pm2','logs', processName+'.log' ),
 
-	error_file: path.join( process.env.HOME,'.pm2','logs', processName+'.log' ),
-	out_file: path.join( process.env.HOME,'.pm2','logs', processName+'.log' ),
+		merge_logs: true,
 
-	merge_logs: true,
-
-	// Default environment variables that will be injected in any environment and at any start
-	env: {
-		//"NODE_TLS_REJECT_UNAUTHORIZED": "0"
-	}
-};
-if( serverInfo.proxyAddress ) {
-	pm2script.env.http_proxy = serverInfo.proxyAddress;
-	pm2script.env.https_proxy = serverInfo.proxyAddress;
-}
-_.each( pm2script.env, function( val ) { 
-
-	if( typeof val === 'string' ) return;
-
-	// parse test
-	try{
-		JSON.parse( val );
-	} catch( err ) {
-		console.error( err );
-	}
-});
-
-function pm2Connect() {
-	var deferred = when.defer();
-	//console.log('pm2.connect()');
-	pm2.connect( function( err ) {
-
-		if (err) {
-			deferred.reject( err );
-			return;
+		env: {
+			//"NODE_TLS_REJECT_UNAUTHORIZED": "0"
 		}
-		deferred.resolve();
+	};
+
+	if( serverInfo.proxyAddress ) {
+		pm2script.env.http_proxy = serverInfo.proxyAddress;
+		pm2script.env.https_proxy = serverInfo.proxyAddress;
+	}
+	_.each( pm2script.env, function( val ) { 
+
+		if( typeof val === 'string' ) return;
+
+		// parse test
+		try{
+			JSON.parse( val );
+		} catch( err ) {
+			console.error( err );
+		}
 	});
-	return deferred.promise;
+
+	return pm2script;
 }
 
-function pm2Delete() {
-	var deferred = when.defer();
-	//console.log('pm2 delete '+processName);
-	pm2.delete( processName, function( err, proc ) {
+function start() {
 
-		if( err ) {
-			deferred.reject( err );
-			return;
-		}
-		deferred.resolve();
-	});
-	return deferred.promise;
-}
+	const pm2Script = getPm2Script();
+	const contents = JSON.stringify( pm2Script, null, 2 );
+	console.log( pm2Script );
+	fs.writeFileSync( PROCESS_JSON, contents, 'utf8' );
 
-function pm2Start() {
+	exec([ PM2, 'start', PROCESS_JSON ]);
 
-	console.log('sinopia path: ' + scriptPath );
-	console.log('node version: ' + process.version );
-	if( process.version !== "0.12.7" ) {
-		console.log('node version is not "0.12.7"'.yellow() );
-	}
 
-	var deferred = when.defer();
-	//console.log('pm2 start');
-	pm2.start( pm2script, function( err, apps ) {
-			 
-		if( err ) {
-			deferred.reject( err );
-			return;
-		}
-		deferred.resolve();
-
-		const registryAddress = serverInfo.host + (serverInfo.port ? ":"+serverInfo.port : "" );
-		const green = "'npm config set registry " + registryAddress + "'";
-		console.log("In the client side, To access this registry, type "+ green.green() );
-		console.log("If you want to see logs, type "+"'sinopia-pm2-starter logs'".green() );
-	});
-	return deferred.promise;
+	const registryAddress = serverInfo.host+(serverInfo.port ? ":"+serverInfo.port : "" );
+	const greenStr = "'npm config set registry " + registryAddress + "'";
+	console.log("In the client side, Set this registry: "+ greenStr.green );
+	console.log("sinopia log: " + "'sinopia-pm2-starter logs'".green );
 }
 
 function save( data ) {
@@ -282,12 +234,20 @@ function save( data ) {
 	var contents = JSON.stringify( data );
 	fs.writeFileSync( SERVER_INFO_PATH, contents );
 	console.log( contents );
-	console.log( msg.green() );
+	console.log( msg.green );
+}
+
+function exec( cmd ) {
+
+	const execOptions = { stdio: [ process.stdin, process.stdout, process.stderr ] };
+	cmd = _.isArray( cmd ) ? cmd.join(' ') : cmd;
+
+	syncExec( cmd, execOptions );
 }
 
 if (process.argv.length == 2) {
 
 	console.log( '' );
-	console.log('  -h, --help     output usage information'.yellow() );
+	console.log('  -h, --help     output usage information'.yellow );
 	console.log( '' );
 }
