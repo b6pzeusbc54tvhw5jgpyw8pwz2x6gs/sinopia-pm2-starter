@@ -1,5 +1,6 @@
 ### 1.2.0
-- now, it can be set node, pm2, sinopia absolute path
+- now it can be set node, pm2, sinopia absolute path
+- now we recommend nodejs v0.12.12 because openssl issue. refer to [nodejs v0.12.12 changelog](https://github.com/nodejs/node/blob/v0.12.12/ChangeLog)
 - pm2 direct dependency has been removed
 - fix wrong --help message
 - add .eslintrc

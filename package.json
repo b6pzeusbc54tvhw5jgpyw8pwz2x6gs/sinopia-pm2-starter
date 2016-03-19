@@ -1,7 +1,7 @@
 {
   "name": "sinopia-pm2-starter",
   "preferGlobal": "true",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Start sinopia using pm2",
   "main": "bin/sinopia-pm2-starter.js",
   "scripts": {
