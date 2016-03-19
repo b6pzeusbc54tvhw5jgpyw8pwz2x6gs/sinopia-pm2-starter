@@ -1,3 +1,6 @@
+### 1.2.2
+- add npm badge into README.md
+
 ### 1.2.0
 - now it can be set node, pm2, sinopia absolute path
 - now we recommend nodejs v0.12.12 because openssl issue. refer to [nodejs v0.12.12 changelog](https://github.com/nodejs/node/blob/v0.12.12/ChangeLog)

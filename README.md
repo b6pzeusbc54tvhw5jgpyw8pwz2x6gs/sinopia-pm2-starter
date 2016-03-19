@@ -1,6 +1,10 @@
 # sinopia-pm2-starter
 sinopia starter using pm2
 
+[![npm version](https://img.shields.io/npm/v/sinopia-pm2-starter.svg?style=flat-square)](https://www.npmjs.com/package/sinopia-pm2-starter)
+
+
+
 ## pre install ( If pm2 or sinopia is not installed )
 ```
 $ npm install -g pm2
