@@ -19,7 +19,7 @@ $ npm install -g sinopia-pm2-starter
 ## usage
 ```
 $ sinopia-pm2-starter config:host '123.123.123.123'
-$ sinopia-pm2-starter config:post '3020'
+$ sinopia-pm2-starter config:port '3020'
 $ sinopia-pm2-starter start
 
 // in the client side
